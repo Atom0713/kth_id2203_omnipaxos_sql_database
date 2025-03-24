@@ -142,8 +142,8 @@ impl Client {
     // If start time has already passed, start immediately.
     async fn wait_until_sync_time(config: &mut ClientConfig, scheduled_start_utc_ms: i64) {
         // // Desync the clients a bit
-        let mut rng = rand::thread_rng();
-        let scheduled_start_utc_ms = scheduled_start_utc_ms + rng.gen_range(1..100);
+        // let mut rng = rand::thread_rng();
+        // let scheduled_start_utc_ms = scheduled_start_utc_ms + rng.gen_range(1..100);
         let now = Utc::now();
         let milliseconds_until_sync = scheduled_start_utc_ms - now.timestamp_millis();
         config.sync_time = Some(milliseconds_until_sync);
