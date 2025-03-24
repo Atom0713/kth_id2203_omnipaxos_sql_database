@@ -106,7 +106,7 @@ impl Client {
     }
 
     fn handle_server_message(&mut self, msg: ServerMessage) {
-        debug!("Recieved {msg:?}");
+        debug!("{}: Recieved {msg:?}", self.id);
         match msg {
             ServerMessage::StartSignal(_) => (),
             server_response => {
@@ -123,7 +123,7 @@ impl Client {
             false => KVCommand::Get(key),
         };
         let request = ClientMessage::Append(self.next_request_id, cmd);
-        debug!("Sending {request:?}");
+        debug!("{}: Sending {request:?}", self.id);
         self.network.send(self.active_server, request).await;
         self.client_data.new_request(is_write);
         self.next_request_id += 1;
