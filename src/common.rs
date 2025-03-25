@@ -67,6 +67,13 @@ pub mod kv {
         Get(String),
     }
 
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum SQLCommand {
+        Insert(String, Vec<String>),
+        Select(String),
+        Delete(String),
+    }
+
     #[derive(Clone, Debug, Serialize, Deserialize)]
     pub struct KVSnapshot {
         snapshotted: HashMap<String, String>,
