@@ -74,6 +74,9 @@ services:
     volumes:
       - ./client-1-config.toml:/app/client-config.toml
       - ./logs/:/app/logs/
+    depends_on:
+      - s1
+      - mysql
   c2:
     image: omnipaxos-client
     container_name: c2
@@ -84,6 +87,9 @@ services:
     volumes:
       - ./client-2-config.toml:/app/client-config.toml
       - ./logs/:/app/logs/
+    depends_on:
+      - s2
+      - mysql
 
 volumes:
   mysql_data:
