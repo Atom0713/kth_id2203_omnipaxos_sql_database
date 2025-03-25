@@ -1,5 +1,5 @@
 use log::debug;
-use omnipaxos_kv::common::kv::KVCommand;
+use omnipaxos_sql::common::kv::KVCommand;
 use sqlx::{MySqlPool, Error};
 use std::collections::HashMap;
 
