@@ -24,6 +24,11 @@ impl Database {
         .execute(&pool)
         .await?;
 
+        debug!("Clearing the kv table");
+        sqlx::query("TRUNCATE TABLE kv")
+            .execute(&pool)
+            .await?;
+
         Ok(Self { pool, db: HashMap::new() })
 
 
