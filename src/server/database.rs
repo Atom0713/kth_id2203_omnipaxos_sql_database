@@ -1,10 +1,8 @@
 use log::debug;
-use omnipaxos_sql::common::kv::KVCommand;
-use sqlx::{MySqlPool, Error};
-use std::collections::HashMap;
+use omnipaxos_sql::common::kv::SQLCommand;
+use sqlx::{MySqlPool, Error, Row};
 
 pub struct Database {
-    db: HashMap<String, String>,
     pool: MySqlPool,
 }
 
@@ -29,32 +27,56 @@ impl Database {
             .execute(&pool)
             .await?;
 
-        Ok(Self { pool, db: HashMap::new() })
+        Ok(Self { pool})
 
 
     }
 
-    pub async fn handle_command(&mut self, command: KVCommand) -> Option<Option<String>> {
+    pub async fn handle_command(&mut self, command: SQLCommand) -> Option<Option<String>> {
         match command {
-            KVCommand::Put(key, value) => {
-                let key_clone = key.clone();
-                let value_clone = value.clone();
+            SQLCommand::Insert(key, query) => {
+                debug!("Checking for existing entry with key: {}", key);
+                let exists_query = format!("SELECT COUNT(*) FROM kv WHERE key_name = '{}'", key);
+                let count: i64 = sqlx::query_scalar(&exists_query).fetch_one(&self.pool).await.unwrap();
+
+                if count > 0 {
+                    debug!("Duplicate entry detected for key: {}, skipping insert", key);
+                    return None; // Skip the insert
+                }
             
-                debug!("Inserting into database: key={}, value={}", key_clone, value_clone);
-                let _ = sqlx::query("INSERT INTO kv (key_name, value) VALUES (?, ?)")
-                    .bind(&key_clone)
-                    .bind(&value_clone)
-                    .execute(&self.pool)
-                    .await;
-                
-                self.db.insert(key, value);
+                debug!("Executing Insert query: {}", query);
+                sqlx::query(&query).execute(&self.pool).await.unwrap();
                 None
             }
-            KVCommand::Delete(key) => {
-                self.db.remove(&key);
+            SQLCommand::Select(_, query) => {
+                debug!("Executing Select query: {}", query);
+                let rows: Vec<sqlx::mysql::MySqlRow> = match sqlx::query(&query).fetch_all(&self.pool).await {
+                    Ok(rows) => rows, // Unwrap the Result to get the Vec<MySqlRow>
+                    Err(e) => {
+                        debug!("Error executing query: {}", e);
+                        return Some(None); // Return None if there is an error
+                    }
+                };
+            
+            if rows.is_empty() {
+                debug!("No rows returned for query: {}", query);
+                return Some(None); // Return `None` if no rows are found
+            }
+
+            // Convert rows to a single string
+            let result_string = rows
+                .iter()
+                .map(|row| row.try_get::<String, _>("value").unwrap_or_default()) // Call `try_get` on each row
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            Some(Some(result_string))
+            }
+            SQLCommand::Delete(_key, query) => {
+                debug!("Executing Delete query: {}", query);
+                let _ = sqlx::query(&query).execute(&self.pool).await;
                 None
             }
-            KVCommand::Get(key) => Some(self.db.get(&key).map(|v| v.clone())),
         }
     }
 }

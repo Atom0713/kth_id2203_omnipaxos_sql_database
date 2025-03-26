@@ -119,8 +119,17 @@ impl Client {
     async fn send_request(&mut self, is_write: bool) {
         let key = self.next_request_id.to_string();
         let cmd = match is_write {
-            true => KVCommand::Put(key.clone(), key),
-            false => KVCommand::Get(key),
+            true => {
+                // Construct an SQLCommand::Insert for write operations
+                SQLCommand::Insert(
+                    key.clone(),
+                    format!("INSERT INTO kv (key_name, value) VALUES ('{}', '{}')", key, key)
+                )
+            },
+            false => {
+                // Construct an SQLCommand::Select for read operations
+                SQLCommand::Select(key.clone(), format!("SELECT * FROM kv WHERE key_name = '{}'", key.clone()))
+            },
         };
         let request = ClientMessage::Append(self.next_request_id, cmd);
         debug!("{}: Sending {request:?}", self.id);

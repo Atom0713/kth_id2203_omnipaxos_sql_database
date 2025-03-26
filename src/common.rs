@@ -3,7 +3,7 @@ pub mod messages {
     use serde::{Deserialize, Serialize};
 
     use super::{
-        kv::{Command, CommandId, KVCommand},
+        kv::{Command, CommandId, SQLCommand},
         utils::Timestamp,
     };
 
@@ -21,7 +21,7 @@ pub mod messages {
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
     pub enum ClientMessage {
-        Append(CommandId, KVCommand),
+        Append(CommandId, SQLCommand),
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -57,7 +57,7 @@ pub mod kv {
         pub client_id: ClientId,
         pub coordinator_id: NodeId,
         pub id: CommandId,
-        pub kv_cmd: KVCommand,
+        pub sql_cmd: SQLCommand,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +65,13 @@ pub mod kv {
         Put(String, String),
         Delete(String),
         Get(String),
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum SQLCommand {
+        Insert(String, String),
+        Select(String, String),
+        Delete(String, String),
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -78,17 +85,17 @@ pub mod kv {
             let mut snapshotted = HashMap::new();
             let mut deleted_keys: Vec<String> = Vec::new();
             for e in entries {
-                match &e.kv_cmd {
-                    KVCommand::Put(key, value) => {
+                match &e.sql_cmd {
+                    SQLCommand::Insert(key, value) => {
                         snapshotted.insert(key.clone(), value.clone());
                     }
-                    KVCommand::Delete(key) => {
+                    SQLCommand::Delete(key, _query) => {
                         if snapshotted.remove(key).is_none() {
                             // key was not in the snapshot
                             deleted_keys.push(key.clone());
                         }
                     }
-                    KVCommand::Get(_) => (),
+                    SQLCommand::Select(_, _) => (),
                 }
             }
             // remove keys that were put back
