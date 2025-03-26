@@ -1,4 +1,4 @@
-use crate::{configs::OmniPaxosKVConfig, database::Database, network::Network};
+use crate::{configs::OmniPaxosSQLConfig, database::Database, network::Network};
 use chrono::Utc;
 use log::*;
 use omnipaxos::{
@@ -22,12 +22,12 @@ pub struct OmniPaxosServer {
     omnipaxos: OmniPaxosInstance,
     current_decided_idx: usize,
     omnipaxos_msg_buffer: Vec<Message<Command>>,
-    config: OmniPaxosKVConfig,
+    config: OmniPaxosSQLConfig,
     peers: Vec<NodeId>,
 }
 
 impl OmniPaxosServer {
-    pub async fn new(config: OmniPaxosKVConfig) -> Self {
+    pub async fn new(config: OmniPaxosSQLConfig) -> Self {
         // Initialize OmniPaxos instance
         let storage: MemoryStorage<Command> = MemoryStorage::default();
         let omnipaxos_config: OmniPaxosConfig = config.clone().into();

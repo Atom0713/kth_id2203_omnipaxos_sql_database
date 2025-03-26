@@ -27,14 +27,14 @@ pub struct LocalConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct OmniPaxosKVConfig {
+pub struct OmniPaxosSQLConfig {
     #[serde(flatten)]
     pub local: LocalConfig,
     #[serde(flatten)]
     pub cluster: ClusterConfig,
 }
 
-impl Into<OmniPaxosConfig> for OmniPaxosKVConfig {
+impl Into<OmniPaxosConfig> for OmniPaxosSQLConfig {
     fn into(self) -> OmniPaxosConfig {
         let cluster_config = OmnipaxosClusterConfig {
             configuration_id: 1,
@@ -52,7 +52,7 @@ impl Into<OmniPaxosConfig> for OmniPaxosKVConfig {
     }
 }
 
-impl OmniPaxosKVConfig {
+impl OmniPaxosSQLConfig {
     pub fn new() -> Result<Self, ConfigError> {
         let local_config_file = match env::var("SERVER_CONFIG_FILE") {
             Ok(file_path) => file_path,

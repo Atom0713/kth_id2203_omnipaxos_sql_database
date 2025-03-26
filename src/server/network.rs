@@ -16,7 +16,7 @@ use tokio::{
 };
 use tokio::{sync::mpsc, task::JoinHandle};
 
-use crate::configs::OmniPaxosKVConfig;
+use crate::configs::OmniPaxosSQLConfig;
 
 pub struct Network {
     peers: Vec<NodeId>,
@@ -30,7 +30,7 @@ pub struct Network {
     pub client_messages: Receiver<(ClientId, ClientMessage)>,
 }
 
-fn get_addrs(config: OmniPaxosKVConfig) -> (SocketAddr, Vec<SocketAddr>) {
+fn get_addrs(config: OmniPaxosSQLConfig) -> (SocketAddr, Vec<SocketAddr>) {
     let listen_address_str = format!(
         "{}:{}",
         config.local.listen_address, config.local.listen_port
@@ -53,7 +53,7 @@ fn get_addrs(config: OmniPaxosKVConfig) -> (SocketAddr, Vec<SocketAddr>) {
 impl Network {
     // Creates a new network with connections other server nodes in the cluster and any clients.
     // Waits until connections to all servers and clients are established before resolving.
-    pub async fn new(config: OmniPaxosKVConfig, batch_size: usize) -> Self {
+    pub async fn new(config: OmniPaxosSQLConfig, batch_size: usize) -> Self {
         let (listen_address, node_addresses) = get_addrs(config.clone());
         let id = config.local.server_id;
         let peer_addresses: Vec<(NodeId, SocketAddr)> = config
