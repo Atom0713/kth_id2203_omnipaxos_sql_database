@@ -144,7 +144,7 @@ impl OmniPaxosServer {
     async fn update_database_and_respond(&mut self, commands: Vec<Command>) {
         // TODO: batching responses possible here (batch at handle_cluster_messages)
         for command in commands {
-            let read = self.database.handle_command(command.kv_cmd).await;
+            let read = self.database.handle_command(command.sql_cmd).await;
             if command.coordinator_id == self.id {
                 let response = match read {
                     Some(read_result) => ServerMessage::Read(command.id, read_result),
@@ -168,8 +168,8 @@ impl OmniPaxosServer {
     async fn handle_client_messages(&mut self, messages: &mut Vec<(ClientId, ClientMessage)>) {
         for (from, message) in messages.drain(..) {
             match message {
-                ClientMessage::Append(command_id, kv_command) => {
-                    self.append_to_log(from, command_id, kv_command)
+                ClientMessage::Append(command_id, sql_command) => {
+                    self.append_to_log(from, command_id, sql_command)
                 }
             }
         }
@@ -199,12 +199,12 @@ impl OmniPaxosServer {
         received_start_signal
     }
 
-    fn append_to_log(&mut self, from: ClientId, command_id: CommandId, kv_command: KVCommand) {
+    fn append_to_log(&mut self, from: ClientId, command_id: CommandId, sql_command: SQLCommand) {
         let command = Command {
             client_id: from,
             coordinator_id: self.id,
             id: command_id,
-            kv_cmd: kv_command,
+            sql_cmd: sql_command,
         };
         self.omnipaxos
             .append(command)
