@@ -10,18 +10,42 @@ x-common-variables: &common-server-variables
   OMNIPAXOS_LISTEN_PORT: 8000                     # Overwrite listen_port in server config TOMLs
 
 services:
-  mysql:
+  mysql_s1:
     image: mysql:latest
-    container_name: mysql
+    container_name: mysql_s1
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: omnipaxos_db
+      MYSQL_DATABASE: omnipaxos_db_s1
       MYSQL_USER: omnipaxos_user
       MYSQL_PASSWORD: omnipaxos_password
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data_s1:/var/lib/mysql
+  mysql_s2:
+    image: mysql:latest
+    container_name: mysql_s2
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: omnipaxos_db_s2
+      MYSQL_USER: omnipaxos_user
+      MYSQL_PASSWORD: omnipaxos_password
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data_s2:/var/lib/mysql
+  mysql_s3:
+    image: mysql:latest
+    container_name: mysql_s3
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: omnipaxos_db_s3
+      MYSQL_USER: omnipaxos_user
+      MYSQL_PASSWORD: omnipaxos_password
+    ports:
+      - "3309:3306"
+    volumes:
+      - mysql_data_s3:/var/lib/mysql
   s1:
     image: omnipaxos-server
     build:
@@ -30,37 +54,37 @@ services:
     container_name: s1
     environment:
       <<: *common-server-variables
-      DATABASE_URL: "mysql://omnipaxos_user:omnipaxos_password@mysql/omnipaxos_db"
+      DATABASE_URL: "mysql://omnipaxos_user:omnipaxos_password@mysql_s1/omnipaxos_db_s1"
     volumes:
       - ./server-1-config.toml:/app/server-config.toml
       - ./cluster-config.toml:/app/cluster-config.toml
       - ./logs/:/app/logs/
     depends_on:
-      - mysql
+      - mysql_s1
   s2:
     image: omnipaxos-server
     container_name: s2
     environment:
       <<: *common-server-variables
-      DATABASE_URL: "mysql://omnipaxos_user:omnipaxos_password@mysql/omnipaxos_db"
+      DATABASE_URL: "mysql://omnipaxos_user:omnipaxos_password@mysql_s2/omnipaxos_db_s2"
     volumes:
       - ./server-2-config.toml:/app/server-config.toml
       - ./cluster-config.toml:/app/cluster-config.toml
       - ./logs/:/app/logs/
     depends_on:
-      - mysql
+      - mysql_s2
   s3:
     image: omnipaxos-server
     container_name: s3
     environment:
       <<: *common-server-variables
-      DATABASE_URL: "mysql://omnipaxos_user:omnipaxos_password@mysql/omnipaxos_db"
+      DATABASE_URL: "mysql://omnipaxos_user:omnipaxos_password@mysql_s3/omnipaxos_db_s3"
     volumes:
       - ./server-3-config.toml:/app/server-config.toml
       - ./cluster-config.toml:/app/cluster-config.toml
       - ./logs/:/app/logs/
     depends_on:
-      - mysql
+      - mysql_s3
   c1:
     image: omnipaxos-client
     build:
@@ -76,7 +100,6 @@ services:
       - ./logs/:/app/logs/
     depends_on:
       - s1
-      - mysql
   c2:
     image: omnipaxos-client
     container_name: c2
@@ -89,7 +112,8 @@ services:
       - ./logs/:/app/logs/
     depends_on:
       - s2
-      - mysql
 
 volumes:
-  mysql_data:
+  mysql_data_s1:
+  mysql_data_s2:
+  mysql_data_s3:
