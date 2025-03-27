@@ -48,7 +48,7 @@ impl Database {
                 sqlx::query(&query).execute(&self.pool).await.unwrap();
                 None
             }
-            SQLCommand::Select(_, query) => {
+            SQLCommand::Select(_, _, query) => {
                 debug!("Executing Select query: {}", query);
                 let rows: Vec<sqlx::mysql::MySqlRow> = match sqlx::query(&query).fetch_all(&self.pool).await {
                     Ok(rows) => rows, // Unwrap the Result to get the Vec<MySqlRow>
