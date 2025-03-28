@@ -8,7 +8,7 @@ use omnipaxos::{
 };
 use omnipaxos_sql::common::{kv::*, messages::*, utils::Timestamp};
 use omnipaxos_storage::memory_storage::MemoryStorage;
-use std::{fs::File, io::Write, time::Duration};
+use std::{fs::File, io::Write, time::Duration, usize};
 
 type OmniPaxosInstance = OmniPaxos<Command, MemoryStorage<Command>>;
 const NETWORK_BATCH_SIZE: usize = 100;
@@ -165,11 +165,53 @@ impl OmniPaxosServer {
         }
     }
 
+    async fn read_from_db(&mut self, command_id: usize, sql_command: SQLCommand) -> ServerMessage {
+        let read = self.database.handle_command(sql_command.clone()).await;
+        match read {
+            Some(read_result) => ServerMessage::Read(command_id, read_result),
+            None => ServerMessage::Read(command_id, None),
+        }
+    }
+
     async fn handle_client_messages(&mut self, messages: &mut Vec<(ClientId, ClientMessage)>) {
         for (from, message) in messages.drain(..) {
             match message {
-                ClientMessage::Append(command_id, sql_command) => {
-                    self.append_to_log(from, command_id, sql_command)
+                ClientMessage::Append(command_id, ref sql_command) => {
+                    match sql_command {
+                        SQLCommand::Select(ConsistencyLevel::Linearizable, _key, _query) => {
+                            self.append_to_log(from, command_id, sql_command.clone())
+                        }
+                        SQLCommand::Select(ConsistencyLevel::Local, key, _query) => {
+                            debug!("{}: Handle local consistency level read key: {key}", self.id);
+                            // just call db handle command
+                            // send response to client
+                            let response = self.read_from_db(command_id, sql_command.clone()).await;
+                            self.network.send_to_client(from, response);
+                        }
+                        SQLCommand::Select(ConsistencyLevel::Leader, key, _query) => {
+                            debug!("{}: Handle Leader consistency level read for key: {key}", self.id);
+                            // if leader, just call db handle command, 
+                            // else, route message to the leader and leader will handle it here
+                            if let Some((curr_leader, _is_accept_phase)) = self.omnipaxos.get_current_leader() {
+                                if curr_leader == self.id {
+                                    let response = self.read_from_db(command_id, sql_command.clone()).await;
+                                    self.network.send_to_client(from, response);
+                                }
+                                else {
+                                    // re-route client message to leader
+                                    let command_id: usize = key.parse::<usize>().unwrap();
+                                    let request = ClusterMessage::LeaderReadMessage(from, self.id, command_id, sql_command.clone());
+                                    debug!("{}: Routing request to the leader {curr_leader}", self.id);
+                                    self.network.send_to_cluster(curr_leader, request);
+                                    
+                                }
+                            }
+                        }
+                        _ => {
+                            self.append_to_log(from, command_id, sql_command.clone());
+                        }
+                        
+                    }
                 }
             }
         }
@@ -192,6 +234,16 @@ impl OmniPaxosServer {
                     debug!("Received start message from peer {from}");
                     received_start_signal = true;
                     self.send_client_start_signals(start_time);
+                }
+                ClusterMessage::LeaderReadMessage(client_id, receiver, command_id, sql_command) => {
+                    debug!("{}: Received leader consistency level read message from server {from}", self.id);
+                    let response = self.read_from_db(command_id, sql_command.clone()).await;
+                    let request = ClusterMessage::LeaderReadMessageResposne(client_id, response);
+                    self.network.send_to_cluster(receiver, request);
+                }
+                ClusterMessage::LeaderReadMessageResposne(client_id, server_response) => {
+                    debug!("{}: Received leader consistency level read response from leader.", self.id);
+                    self.network.send_to_client(client_id, server_response);
                 }
             }
         }
