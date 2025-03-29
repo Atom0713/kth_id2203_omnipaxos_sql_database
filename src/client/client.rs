@@ -127,8 +127,22 @@ impl Client {
                 )
             },
             false => {
+                let consistency_level: ConsistencyLevel ={
+                    let random_value = rand::thread_rng().gen::<f64>();
+                    if random_value < 0.25 {
+                        ConsistencyLevel::Local // 25% probability
+                    } else if random_value < 0.50 {
+                        ConsistencyLevel::Leader // 25% probability
+                    } else {
+                        ConsistencyLevel::Linearizable // 50% probability
+                    }
+                };
                 // Construct an SQLCommand::Select for read operations
-                SQLCommand::Select(key.clone(), format!("SELECT * FROM kv WHERE key_name = '{}'", key.clone()))
+                SQLCommand::Select(
+                    consistency_level,
+                    key.clone(),
+                    format!("SELECT * FROM kv WHERE key_name = '{}'", key.clone())
+                )
             },
         };
         let request = ClientMessage::Append(self.next_request_id, cmd);

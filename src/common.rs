@@ -17,6 +17,8 @@ pub mod messages {
     pub enum ClusterMessage {
         OmniPaxosMessage(OmniPaxosMessage<Command>),
         LeaderStartSignal(Timestamp),
+        LeaderReadMessage(NodeId, NodeId, CommandId, SQLCommand),
+        LeaderReadMessageResposne(NodeId, ServerMessage)
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -70,8 +72,15 @@ pub mod kv {
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub enum SQLCommand {
         Insert(String, String),
-        Select(String, String),
+        Select(ConsistencyLevel, String, String),
         Delete(String, String),
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub enum ConsistencyLevel {
+        Local,
+        Leader,
+        Linearizable,
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -95,7 +104,7 @@ pub mod kv {
                             deleted_keys.push(key.clone());
                         }
                     }
-                    SQLCommand::Select(_, _) => (),
+                    SQLCommand::Select(_, _, _) => (),
                 }
             }
             // remove keys that were put back

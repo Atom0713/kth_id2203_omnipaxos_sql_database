@@ -35,21 +35,21 @@ impl Database {
     pub async fn handle_command(&mut self, command: SQLCommand) -> Option<Option<String>> {
         match command {
             SQLCommand::Insert(key, query) => {
-                debug!("Checking for existing entry with key: {}", key);
+                debug!("Check if key: {} exists", key);
                 let exists_query = format!("SELECT COUNT(*) FROM kv WHERE key_name = '{}'", key);
                 let count: i64 = sqlx::query_scalar(&exists_query).fetch_one(&self.pool).await.unwrap();
 
                 if count > 0 {
                     debug!("Duplicate entry detected for key: {}, skipping insert", key);
-                    return None; // Skip the insert
+                    return None;
                 }
             
-                debug!("Executing Insert query: {}", query);
+                debug!("Insert key: {key}");
                 sqlx::query(&query).execute(&self.pool).await.unwrap();
                 None
             }
-            SQLCommand::Select(_, query) => {
-                debug!("Executing Select query: {}", query);
+            SQLCommand::Select(_, key, query) => {
+                debug!("Read key: {}", key);
                 let rows: Vec<sqlx::mysql::MySqlRow> = match sqlx::query(&query).fetch_all(&self.pool).await {
                     Ok(rows) => rows, // Unwrap the Result to get the Vec<MySqlRow>
                     Err(e) => {
@@ -59,7 +59,7 @@ impl Database {
                 };
             
             if rows.is_empty() {
-                debug!("No rows returned for query: {}", query);
+                debug!("No rows returned for key: {}", key);
                 return Some(None); // Return `None` if no rows are found
             }
 
@@ -72,8 +72,8 @@ impl Database {
 
             Some(Some(result_string))
             }
-            SQLCommand::Delete(_key, query) => {
-                debug!("Executing Delete query: {}", query);
+            SQLCommand::Delete(key, query) => {
+                debug!("Delete key: {}", key);
                 let _ = sqlx::query(&query).execute(&self.pool).await;
                 None
             }
